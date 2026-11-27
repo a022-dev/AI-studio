@@ -1,7 +1,9 @@
+import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useEffect, useState } from 'react';
 import { MiniPlayer } from './components/MiniPlayer';
 import { PlaylistModal } from './components/PlaylistModal';
 import { TopNav } from './components/TopNav';
+import { WeatherAtmosphereCanvas } from './components/WeatherAtmosphereCanvas';
 import { CITIES, INITIAL_SUBMISSIONS, PLAYLISTS } from './data/curationData';
 import { AboutPage } from './pages/AboutPage';
 import { ExplorePage } from './pages/ExplorePage';
@@ -21,10 +23,37 @@ import { fetchCityWeather } from './utils/weatherApi';
 
 const SUBMISSIONS_STORAGE_KEY = 'myvibe_submissions_v1';
 const BUG_REPORTS_STORAGE_KEY = 'myvibe_bug_reports_v1';
+const THEME_STORAGE_KEY = 'myvibe_theme_v1';
 
 export default function App() {
   const [activePage, setActivePage] = useState<PageId>('main');
   const [exploreInitialWeather, setExploreInitialWeather] = useState<WeatherKey>('clear');
+
+  // Dual-theme state synced with <html class="dark">
+  const [themeMode, setThemeMode] = useState<'light' | 'dark'>(() => {
+    try {
+      const saved = localStorage.getItem(THEME_STORAGE_KEY);
+      if (saved === 'light' || saved === 'dark') {
+        return saved;
+      }
+    } catch {
+      // Ignore storage errors
+    }
+    return 'dark';
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', themeMode === 'dark');
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, themeMode);
+    } catch {
+      // Ignore storage errors
+    }
+  }, [themeMode]);
+
+  const toggleThemeMode = useCallback(() => {
+    setThemeMode((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  }, []);
 
   // Weather state
   const [selectedCityId, setSelectedCityId] = useState<string>('seoul');
@@ -240,89 +269,122 @@ export default function App() {
     }
   };
 
+  const effectiveWeather: WeatherKey = overrideWeather ?? weatherData.weatherKey;
+
   return (
-    <div className="min-h-screen bg-[#121212] text-[#F4F4F5] flex flex-col">
-      <TopNav activePage={activePage} onNavigate={(page) => handleNavigate(page)} />
+    <div className="relative min-h-screen bg-[#F7F6F2] text-zinc-900 dark:bg-[#121212] dark:text-[#F4F4F5] flex flex-col transition-colors">
+      <WeatherAtmosphereCanvas
+        weather={effectiveWeather}
+        isPlaying={isPlaying}
+        themeMode={themeMode}
+      />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 sm:px-6 lg:px-8">
-        {activePage === 'main' && (
-          <MainPage
-            weatherData={weatherData}
-            selectedCityId={selectedCityId}
-            overrideWeather={overrideWeather}
-            isLoadingWeather={isLoadingWeather}
-            onSelectCity={setSelectedCityId}
-            onRefreshWeather={() => loadWeather(selectedCityId)}
-            onSetOverrideWeather={setOverrideWeather}
-            onPlayPlaylist={handlePlayTrack}
-            onOpenPlaylistDetail={setModalPlaylist}
-            onNavigate={handleNavigate}
-          />
-        )}
+      <div className="relative z-10 flex min-h-screen flex-col">
+        <TopNav activePage={activePage} onNavigate={(page) => handleNavigate(page)} />
 
-        {activePage === 'explore' && (
-          <ExplorePage
-            initialWeather={exploreInitialWeather}
-            activeTrackId={activeTrack.id}
-            isPlaying={isPlaying}
-            onPlayTrack={handlePlayTrack}
-            onOpenPlaylistDetail={setModalPlaylist}
-          />
-        )}
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 sm:px-6 lg:px-8">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activePage}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {activePage === 'main' && (
+                <MainPage
+                  weatherData={weatherData}
+                  selectedCityId={selectedCityId}
+                  overrideWeather={overrideWeather}
+                  isLoadingWeather={isLoadingWeather}
+                  isPlaying={isPlaying}
+                  activePlaylistId={activePlaylist.id}
+                  themeMode={themeMode}
+                  onToggleTheme={setThemeMode}
+                  onSelectCity={setSelectedCityId}
+                  onRefreshWeather={() => loadWeather(selectedCityId)}
+                  onSetOverrideWeather={setOverrideWeather}
+                  onPlayPlaylist={handlePlayTrack}
+                  onOpenPlaylistDetail={setModalPlaylist}
+                  onNavigate={handleNavigate}
+                />
+              )}
 
-        {activePage === 'recommend' && (
-          <RecommendPage
-            submissions={submissions}
-            onAddSubmission={handleAddSubmission}
-            onToggleLike={handleToggleLike}
-            onPlayMoodPreview={handlePlayTrack}
-          />
-        )}
+              {activePage === 'explore' && (
+                <ExplorePage
+                  initialWeather={exploreInitialWeather}
+                  activeTrackId={activeTrack.id}
+                  isPlaying={isPlaying}
+                  onPlayTrack={handlePlayTrack}
+                  onOpenPlaylistDetail={setModalPlaylist}
+                />
+              )}
 
-        {activePage === 'about' && <AboutPage onReportBug={handleReportBug} />}
-      </main>
+              {activePage === 'recommend' && (
+                <RecommendPage
+                  submissions={submissions}
+                  onAddSubmission={handleAddSubmission}
+                  onToggleLike={handleToggleLike}
+                  onPlayMoodPreview={handlePlayTrack}
+                />
+              )}
 
-      {/* Quiet Editorial Footer above fixed mini player */}
-      <footer className="border-t border-white/[0.08] bg-[#121212] pb-24 pt-8">
-        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 text-xs text-zinc-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <span className="font-display text-sm font-semibold text-zinc-200">MY VIBE</span>
-            <span aria-hidden="true">·</span>
-            <span>날씨와 음악을 잇는 큐레이션 웹진</span>
+              {activePage === 'about' && <AboutPage onReportBug={handleReportBug} />}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+
+        {/* Quiet Editorial Footer above fixed mini player */}
+        <footer className="border-t border-zinc-200 bg-[#F7F6F2]/85 dark:border-white/[0.08] dark:bg-[#121212]/80 backdrop-blur-sm pb-24 pt-8 transition-colors">
+          <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 text-xs text-zinc-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+            <div className="flex items-center gap-3">
+              <span className="font-display text-sm font-semibold text-zinc-900 dark:text-zinc-200">
+                MY VIBE
+              </span>
+              <span aria-hidden="true">·</span>
+              <span>날씨와 음악을 잇는 큐레이션 웹진</span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-5">
+              <button
+                type="button"
+                onClick={() => handleNavigate('main')}
+                className="hover:text-zinc-900 dark:hover:text-zinc-200 cursor-pointer"
+              >
+                메인
+              </button>
+              <button
+                type="button"
+                onClick={() => handleNavigate('explore')}
+                className="hover:text-zinc-900 dark:hover:text-zinc-200 cursor-pointer"
+              >
+                날씨별 탐색
+              </button>
+              <button
+                type="button"
+                onClick={() => handleNavigate('recommend')}
+                className="hover:text-zinc-900 dark:hover:text-zinc-200 cursor-pointer"
+              >
+                추천·제보
+              </button>
+              <button
+                type="button"
+                onClick={() => handleNavigate('about')}
+                className="hover:text-zinc-900 dark:hover:text-zinc-200 cursor-pointer"
+              >
+                서비스 소개
+              </button>
+              <button
+                type="button"
+                onClick={toggleThemeMode}
+                className="font-medium text-zinc-700 hover:text-black dark:text-zinc-300 dark:hover:text-white cursor-pointer"
+              >
+                {themeMode === 'dark' ? '라이트 테마로 전환' : '다크 테마로 전환'}
+              </button>
+            </div>
           </div>
-
-          <div className="flex flex-wrap items-center gap-5">
-            <button
-              type="button"
-              onClick={() => handleNavigate('main')}
-              className="hover:text-zinc-200 cursor-pointer"
-            >
-              메인
-            </button>
-            <button
-              type="button"
-              onClick={() => handleNavigate('explore')}
-              className="hover:text-zinc-200 cursor-pointer"
-            >
-              날씨별 탐색
-            </button>
-            <button
-              type="button"
-              onClick={() => handleNavigate('recommend')}
-              className="hover:text-zinc-200 cursor-pointer"
-            >
-              추천·제보
-            </button>
-            <button
-              type="button"
-              onClick={() => handleNavigate('about')}
-              className="hover:text-zinc-200 cursor-pointer"
-            >
-              서비스 소개
-            </button>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      </div>
 
       <MiniPlayer
         playlist={activePlaylist}
@@ -330,6 +392,8 @@ export default function App() {
         isPlaying={isPlaying}
         isMuted={isMuted}
         currentTime={currentTime}
+        themeMode={themeMode}
+        onToggleTheme={toggleThemeMode}
         onTogglePlay={handleTogglePlay}
         onPrev={handlePrevTrack}
         onNext={handleNextTrack}
