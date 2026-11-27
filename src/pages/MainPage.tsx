@@ -66,7 +66,7 @@ export function MainPage({
       {/* 1. Weather Widget + Hero Banner */}
       <section className="pt-8 sm:pt-12">
         {/* Weather Control & Theme Bar */}
-        <div className="mb-8 flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-white/[0.08] dark:bg-[#1E1E1E] dark:shadow-none sm:p-5">
+        <div className="mb-8 flex flex-col gap-4 rounded-2xl border border-zinc-200/80 bg-white/85 p-4 shadow-sm backdrop-blur-md dark:border-white/[0.08] dark:bg-[#1E1E1E]/85 dark:shadow-none sm:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap items-center gap-4">
               {/* City Selector */}
