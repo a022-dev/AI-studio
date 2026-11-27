@@ -1,7 +1,8 @@
-import { ArrowRight, ExternalLink, Pause, Play, RefreshCw } from 'lucide-react';
+import { ArrowRight, ExternalLink, Maximize2, Pause, Play, RefreshCw } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { AudioVisualizer } from '../components/AudioVisualizer';
+import { CoverFlowCarousel } from '../components/CoverFlowCarousel';
 import { PWAInstallButton } from '../components/PWAInstallButton';
 import { TiltAlbumCard } from '../components/TiltAlbumCard';
 import { VinylSpectrumRing } from '../components/VinylSpectrumRing';
@@ -23,6 +24,7 @@ interface MainPageProps {
   onSetOverrideWeather: (weather: WeatherKey | null) => void;
   onPlayPlaylist: (playlist: Playlist, track?: Track) => void;
   onOpenPlaylistDetail: (playlist: Playlist) => void;
+  onOpenTurntable: () => void;
   onNavigate: (page: PageId, weatherFilter?: WeatherKey) => void;
 }
 
@@ -42,10 +44,12 @@ export function MainPage({
   onSetOverrideWeather,
   onPlayPlaylist,
   onOpenPlaylistDetail,
+  onOpenTurntable,
   onNavigate,
 }: MainPageProps) {
   const [activeEmbed, setActiveEmbed] = useState<'spotify' | 'youtube'>('spotify');
   const [embedLoaded, setEmbedLoaded] = useState(false);
+  const [showcaseMode, setShowcaseMode] = useState<'coverflow' | 'grid'>('coverflow');
 
   const effectiveWeather: WeatherKey = overrideWeather ?? weatherData.weatherKey;
   const theme = WEATHER_THEMES[effectiveWeather];
@@ -276,6 +280,15 @@ export function MainPage({
                   <span>트랙리스트 ({heroPlaylist.tracks.length}곡)</span>
                 </button>
 
+                <button
+                  type="button"
+                  onClick={onOpenTurntable}
+                  className="inline-flex h-11 items-center gap-1.5 rounded-lg border border-zinc-300 bg-white/80 px-4 text-sm font-medium text-zinc-800 transition-colors hover:border-zinc-400 hover:bg-white dark:border-white/15 dark:bg-[#1E1E1E]/85 dark:text-zinc-200 dark:hover:border-white/30 dark:hover:text-white cursor-pointer whitespace-nowrap"
+                >
+                  <Maximize2 className="h-3.5 w-3.5" />
+                  <span>턴테이블 모드</span>
+                </button>
+
                 <a
                   href={heroPlaylist.spotifySearchUrl}
                   target="_blank"
@@ -358,6 +371,16 @@ export function MainPage({
                   </div>
                 </div>
 
+                {/* Ambient Blurred Cover Backlight behind Hero Sleeve */}
+                <img
+                  src={heroPlaylist.coverUrl}
+                  alt=""
+                  aria-hidden="true"
+                  className={`pointer-events-none absolute inset-4 -z-10 h-[92%] w-[76%] rounded-3xl object-cover blur-3xl transition-opacity duration-500 ${
+                    isHeroPlaying ? 'opacity-55 dark:opacity-65' : 'opacity-25 group-hover:opacity-45 dark:opacity-35 dark:group-hover:opacity-55'
+                  }`}
+                />
+
                 {/* Front Album Sleeve */}
                 <div className="relative z-10 aspect-square w-full overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-200 shadow-xl dark:border-white/15 dark:bg-[#1E1E1E] dark:shadow-2xl">
                   <img
@@ -367,6 +390,15 @@ export function MainPage({
                     fetchPriority="high"
                     decoding="async"
                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                  />
+                  {/* Holographic vinyl sleeve reflection */}
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 opacity-30 transition-opacity duration-300 group-hover:opacity-55"
+                    style={{
+                      background:
+                        'linear-gradient(125deg, rgba(255,255,255,0.28) 0%, transparent 32%, rgba(192,132,252,0.12) 48%, rgba(56,189,248,0.10) 56%, transparent 72%)',
+                    }}
                   />
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent p-5 sm:p-6">
                     <div className="flex items-end justify-between gap-4">
@@ -410,17 +442,55 @@ export function MainPage({
             </h2>
           </div>
 
-          <button
-            type="button"
-            onClick={() => onNavigate('explore')}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white cursor-pointer whitespace-nowrap self-start sm:self-auto"
-          >
-            <span>날씨별 전체 탐색</span>
-            <ArrowRight className="h-4 w-4" />
-          </button>
+          <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
+            {/* Showcase View Mode Toggle: 3D Cover Flow vs Grid */}
+            <div className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-white p-1 dark:border-white/[0.08] dark:bg-[#1E1E1E]">
+              <button
+                type="button"
+                onClick={() => setShowcaseMode('coverflow')}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap ${
+                  showcaseMode === 'coverflow'
+                    ? 'bg-zinc-900 text-white dark:bg-[#27272A]'
+                    : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
+                }`}
+              >
+                3D 커버 플로우
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowcaseMode('grid')}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap ${
+                  showcaseMode === 'grid'
+                    ? 'bg-zinc-900 text-white dark:bg-[#27272A]'
+                    : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
+                }`}
+              >
+                그리드 보기
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => onNavigate('explore')}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white cursor-pointer whitespace-nowrap"
+            >
+              <span>날씨별 전체 탐색</span>
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
-        {/* Mobile Dedicated Horizontal Snap-Scroll Carousel */}
+        {showcaseMode === 'coverflow' ? (
+          <CoverFlowCarousel
+            playlists={PLAYLISTS}
+            activePlaylistId={activePlaylistId}
+            isPlaying={isPlaying}
+            onPlayPlaylist={onPlayPlaylist}
+            onOpenPlaylistDetail={onOpenPlaylistDetail}
+          />
+        ) : (
+          <>
+            {/* Mobile Dedicated Horizontal Snap-Scroll Carousel */}
         <div className="md:hidden -mx-4 flex gap-4 overflow-x-auto snap-x snap-mandatory px-4 pb-2">
           {featuredPlaylists.map((playlist) => {
             const cardTheme = WEATHER_THEMES[playlist.weather];
@@ -496,6 +566,7 @@ export function MainPage({
               <TiltAlbumCard
                 key={playlist.id}
                 accentHex={cardTheme.accentHex}
+                coverUrl={playlist.coverUrl}
                 className="flex"
               >
                 <article className="group flex w-full flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm transition-colors duration-200 hover:border-zinc-300 dark:border-white/[0.07] dark:bg-[#1E1E1E] dark:shadow-none dark:hover:border-white/25">
@@ -572,6 +643,8 @@ export function MainPage({
             );
           })}
         </div>
+          </>
+        )}
       </section>
 
       {/* 3. External Streaming & Embedded Player Showcase */}

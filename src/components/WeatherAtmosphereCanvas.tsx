@@ -33,6 +33,7 @@ export function WeatherAtmosphereCanvas({
 }: WeatherAtmosphereCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const pointerRef = useRef<{ x: number; y: number }>({ x: 0.5, y: 0.35 });
+  const scrollRef = useRef<number>(0);
 
   useEffect(() => {
     const handlePointerMove = (e: PointerEvent) => {
@@ -41,8 +42,15 @@ export function WeatherAtmosphereCanvas({
         y: e.clientY / Math.max(1, window.innerHeight),
       };
     };
+    const handleScroll = () => {
+      scrollRef.current = window.scrollY;
+    };
     window.addEventListener('pointermove', handlePointerMove, { passive: true });
-    return () => window.removeEventListener('pointermove', handlePointerMove);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
   useEffect(() => {
@@ -163,13 +171,14 @@ export function WeatherAtmosphereCanvas({
       const [c1, c2] = skyMap[weather];
       const px = pointerRef.current.x;
       const py = pointerRef.current.y;
+      const scrollShift = Math.min(80, scrollRef.current * 0.045);
 
       const grad1 = ctx.createRadialGradient(
         width * (0.72 + (px - 0.5) * 0.08),
-        height * (0.18 + (py - 0.5) * 0.08),
+        height * (0.18 + (py - 0.5) * 0.08) - scrollShift,
         30,
         width * 0.72,
-        height * 0.18,
+        height * 0.18 - scrollShift,
         Math.max(width, height) * 0.65
       );
       grad1.addColorStop(0, c1);

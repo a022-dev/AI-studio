@@ -1,10 +1,12 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useEffect, useState } from 'react';
 import { MiniPlayer } from './components/MiniPlayer';
+import { NowPlayingModal } from './components/NowPlayingModal';
 import { PlaylistModal } from './components/PlaylistModal';
 import { TopNav } from './components/TopNav';
 import { WeatherAtmosphereCanvas } from './components/WeatherAtmosphereCanvas';
 import { WeatherGlassOverlay } from './components/WeatherGlassOverlay';
+import { WeatherWipeTransition } from './components/WeatherWipeTransition';
 import { CITIES, INITIAL_SUBMISSIONS, PLAYLISTS } from './data/curationData';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { AboutPage } from './pages/AboutPage';
@@ -89,8 +91,9 @@ export default function App() {
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
 
-  // Modal state
+  // Modal & Fullscreen Turntable state
   const [modalPlaylist, setModalPlaylist] = useState<Playlist | null>(null);
+  const [isTurntableOpen, setIsTurntableOpen] = useState<boolean>(false);
 
   // Community submissions persisted in localStorage
   const [submissions, setSubmissions] = useState<CommunitySubmission[]>(() => {
@@ -291,7 +294,9 @@ export default function App() {
 
       <WeatherGlassOverlay weather={effectiveWeather} themeMode={themeMode} />
 
-      <div className="relative z-10 flex min-h-screen flex-col">
+      <WeatherWipeTransition weather={effectiveWeather} />
+
+      <div className="relative flex min-h-screen flex-col">
         <TopNav
           activePage={activePage}
           themeMode={themeMode}
@@ -299,7 +304,7 @@ export default function App() {
           onToggleTheme={toggleThemeMode}
         />
 
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 sm:px-6 lg:px-8">
+        <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-4 sm:px-6 lg:px-8">
           <AnimatePresence mode="wait">
             <motion.div
               key={activePage}
@@ -323,6 +328,7 @@ export default function App() {
                   onSetOverrideWeather={setOverrideWeather}
                   onPlayPlaylist={handlePlayTrack}
                   onOpenPlaylistDetail={setModalPlaylist}
+                  onOpenTurntable={() => setIsTurntableOpen(true)}
                   onNavigate={handleNavigate}
                 />
               )}
@@ -352,7 +358,7 @@ export default function App() {
         </main>
 
         {/* Quiet Editorial Footer above fixed mini player / mobile thumb dock */}
-        <footer className="border-t border-zinc-200 bg-[#F7F6F2]/85 dark:border-white/[0.08] dark:bg-[#121212]/80 backdrop-blur-sm pb-32 md:pb-24 pt-8 transition-colors">
+        <footer className="relative z-10 border-t border-zinc-200 bg-[#F7F6F2]/85 dark:border-white/[0.08] dark:bg-[#121212]/80 backdrop-blur-sm pb-32 md:pb-24 pt-8 transition-colors">
           <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 text-xs text-zinc-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
             <div className="flex items-center gap-3">
               <span className="font-display text-sm font-semibold text-zinc-900 dark:text-zinc-200">
@@ -419,6 +425,7 @@ export default function App() {
         onSeek={setCurrentTime}
         onToggleMute={handleToggleMute}
         onOpenPlaylistDetail={() => setModalPlaylist(activePlaylist)}
+        onOpenTurntable={() => setIsTurntableOpen(true)}
       />
 
       {!isOnline && (
@@ -436,6 +443,23 @@ export default function App() {
         isPlaying={isPlaying}
         onClose={() => setModalPlaylist(null)}
         onPlayTrack={handlePlayTrack}
+      />
+
+      <NowPlayingModal
+        isOpen={isTurntableOpen}
+        playlist={activePlaylist}
+        track={activeTrack}
+        isPlaying={isPlaying}
+        isMuted={isMuted}
+        currentTime={currentTime}
+        themeMode={themeMode}
+        onClose={() => setIsTurntableOpen(false)}
+        onTogglePlay={handleTogglePlay}
+        onPrev={handlePrevTrack}
+        onNext={handleNextTrack}
+        onSeek={setCurrentTime}
+        onToggleMute={handleToggleMute}
+        onSelectTrack={handlePlayTrack}
       />
     </div>
   );

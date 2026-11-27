@@ -11,9 +11,11 @@ interface GlassDroplet {
   y: number;
   r: number;
   vy: number;
+  baseSpeed: number;
   sliding: boolean;
   wobblePhase: number;
-  trail: { x: number; y: number }[];
+  trail: { x: number; y: number; r: number }[];
+  isMicro?: boolean;
 }
 
 interface FrostBranch {
@@ -31,40 +33,94 @@ export function WeatherGlassOverlay({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isLight = themeMode === 'light';
 
-  // Edge-only CSS glass vignette keeping the central reading zone 100% clear
-  const edgeVignetteStyle = useMemo(() => {
+  // Physical glass edge frost / steam condensation blur masked so the center reading zone stays 100% sharp
+  const frostedBlurStyle = useMemo(() => {
+    const blurMap: Record<WeatherKey, string> = {
+      rain: 'blur(6px)',
+      snow: 'blur(8px)',
+      cloudy: 'blur(6px)',
+      clear: 'blur(1.5px)',
+      dawn: 'blur(4px)',
+    };
+    const maskGradient =
+      weather === 'snow'
+        ? 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 52%, rgba(0,0,0,0.45) 78%, rgba(0,0,0,1) 100%)'
+        : weather === 'rain' || weather === 'cloudy'
+        ? 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 58%, rgba(0,0,0,0.38) 82%, rgba(0,0,0,0.95) 100%)'
+        : 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 68%, rgba(0,0,0,0.35) 90%, rgba(0,0,0,0.85) 100%)';
+
+    return {
+      backdropFilter: blurMap[weather],
+      WebkitBackdropFilter: blurMap[weather],
+      maskImage: maskGradient,
+      WebkitMaskImage: maskGradient,
+    };
+  }, [weather]);
+
+  // Atmospheric condensation & window-pane edge tint
+  const edgeTintStyle = useMemo(() => {
     if (weather === 'rain') {
       return {
         background: isLight
-          ? 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 64%, rgba(99, 102, 241, 0.08) 88%, rgba(79, 70, 229, 0.16) 100%)'
-          : 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 64%, rgba(88, 28, 135, 0.14) 88%, rgba(15, 23, 42, 0.42) 100%)',
+          ? 'radial-gradient(ellipse at 50% 50%, rgba(255,255,255,0) 56%, rgba(226, 232, 240, 0.28) 84%, rgba(148, 163, 184, 0.42) 100%)'
+          : 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 56%, rgba(88, 28, 135, 0.16) 83%, rgba(15, 23, 42, 0.54) 100%)',
+        boxShadow: isLight
+          ? 'inset 0 0 70px rgba(79, 70, 229, 0.14), inset 0 0 0 1px rgba(255,255,255,0.45)'
+          : 'inset 0 0 80px rgba(15, 23, 42, 0.65), inset 0 0 0 1px rgba(255,255,255,0.12)',
       };
     }
     if (weather === 'snow') {
       return {
         background: isLight
-          ? 'radial-gradient(ellipse at 50% 50%, rgba(255,255,255,0) 60%, rgba(186, 230, 253, 0.24) 86%, rgba(224, 242, 254, 0.52) 100%)'
-          : 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 60%, rgba(147, 197, 253, 0.10) 85%, rgba(224, 242, 254, 0.22) 100%)',
+          ? 'radial-gradient(ellipse at 50% 50%, rgba(255,255,255,0) 50%, rgba(224, 242, 254, 0.46) 80%, rgba(255, 255, 255, 0.78) 100%)'
+          : 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 52%, rgba(186, 230, 253, 0.16) 82%, rgba(224, 242, 254, 0.36) 100%)',
+        boxShadow: isLight
+          ? 'inset 0 0 90px rgba(186, 230, 253, 0.65), inset 0 0 0 1px rgba(255,255,255,0.7)'
+          : 'inset 0 0 95px rgba(186, 230, 253, 0.24), inset 0 0 0 1px rgba(224,242,254,0.22)',
       };
     }
     if (weather === 'cloudy') {
       return {
         background: isLight
-          ? 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 65%, rgba(148, 163, 184, 0.12) 90%, rgba(100, 116, 139, 0.20) 100%)'
-          : 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 65%, rgba(71, 85, 105, 0.14) 90%, rgba(15, 23, 42, 0.34) 100%)',
+          ? 'radial-gradient(ellipse at 50% 50%, rgba(255,255,255,0) 56%, rgba(226, 232, 240, 0.35) 84%, rgba(148, 163, 184, 0.48) 100%)'
+          : 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 56%, rgba(100, 116, 139, 0.20) 84%, rgba(30, 41, 59, 0.46) 100%)',
+        boxShadow: isLight
+          ? 'inset 0 0 65px rgba(148, 163, 184, 0.28), inset 0 0 0 1px rgba(255,255,255,0.45)'
+          : 'inset 0 0 75px rgba(15, 23, 42, 0.55), inset 0 0 0 1px rgba(255,255,255,0.10)',
       };
     }
     if (weather === 'clear') {
       return {
         background: isLight
-          ? 'radial-gradient(circle at 96% 4%, rgba(253, 224, 71, 0.18) 0%, rgba(29, 185, 84, 0.06) 28%, rgba(0,0,0,0) 62%)'
-          : 'radial-gradient(circle at 96% 4%, rgba(29, 185, 84, 0.16) 0%, rgba(250, 204, 21, 0.07) 26%, rgba(0,0,0,0) 60%)',
+          ? 'radial-gradient(circle at 92% 6%, rgba(253, 224, 71, 0.24) 0%, rgba(29, 185, 84, 0.08) 32%, rgba(0,0,0,0) 64%)'
+          : 'radial-gradient(circle at 92% 6%, rgba(29, 185, 84, 0.20) 0%, rgba(250, 204, 21, 0.10) 30%, rgba(0,0,0,0) 62%)',
+        boxShadow: isLight
+          ? 'inset 0 0 40px rgba(254, 240, 138, 0.18), inset 0 0 0 1px rgba(255,255,255,0.5)'
+          : 'inset 0 0 50px rgba(29, 185, 84, 0.12), inset 0 0 0 1px rgba(255,255,255,0.12)',
       };
     }
     return {
       background: isLight
-        ? 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 65%, rgba(109, 40, 217, 0.08) 90%, rgba(67, 56, 202, 0.16) 100%)'
-        : 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 62%, rgba(88, 28, 135, 0.14) 88%, rgba(12, 10, 28, 0.42) 100%)',
+        ? 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 58%, rgba(109, 40, 217, 0.12) 86%, rgba(67, 56, 202, 0.24) 100%)'
+        : 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 56%, rgba(88, 28, 135, 0.18) 85%, rgba(9, 9, 18, 0.56) 100%)',
+      boxShadow: isLight
+        ? 'inset 0 0 65px rgba(109, 40, 217, 0.15), inset 0 0 0 1px rgba(255,255,255,0.35)'
+        : 'inset 0 0 80px rgba(15, 10, 35, 0.65), inset 0 0 0 1px rgba(192,132,252,0.16)',
+    };
+  }, [weather, isLight]);
+
+  // Diagonal window glass specular reflection sheen
+  const glassReflectionStyle = useMemo(() => {
+    const sheenAlpha =
+      weather === 'clear'
+        ? isLight
+          ? 0.24
+          : 0.11
+        : isLight
+        ? 0.14
+        : 0.065;
+    return {
+      background: `linear-gradient(122deg, rgba(255,255,255,0) 14%, rgba(255,255,255,${sheenAlpha}) 22%, rgba(255,255,255,0) 27%, rgba(255,255,255,0) 58%, rgba(255,255,255,${sheenAlpha * 0.65}) 63%, rgba(255,255,255,0) 68%)`,
     };
   }, [weather, isLight]);
 
@@ -79,36 +135,83 @@ export function WeatherGlassOverlay({
     let height = (canvas.height = window.innerHeight);
     let animId = 0;
 
-    // Pick a point strictly along the outer viewport frame (window border)
-    const randomPerimeterPoint = (bandRatio = 0.13) => {
-      const bandX = Math.max(32, width * bandRatio);
-      const bandY = Math.max(28, height * bandRatio);
+    // Frame droplets along outer window margins while keeping central reading area clear
+    const randomPerimeterPoint = (bandRatioX: number, bandRatioY: number) => {
+      const bandX = Math.max(42, width * bandRatioX);
+      const bandY = Math.max(36, height * bandRatioY);
       const zone = Math.random();
-      if (zone < 0.38) {
+      if (zone < 0.36) {
         return { x: Math.random() * bandX, y: Math.random() * height };
       }
-      if (zone < 0.76) {
+      if (zone < 0.72) {
         return { x: width - Math.random() * bandX, y: Math.random() * height };
       }
-      if (zone < 0.90) {
+      if (zone < 0.86) {
         return { x: Math.random() * width, y: Math.random() * bandY };
       }
       return { x: Math.random() * width, y: height - Math.random() * bandY };
     };
 
     const createRainDroplets = (): GlassDroplet[] => {
-      const count = width < 640 ? 34 : 58;
-      return Array.from({ length: count }, (_, idx) => {
-        const pt = randomPerimeterPoint(width < 640 ? 0.11 : 0.13);
-        const isLarge = idx % 6 === 0;
+      const isMobile = width < 640;
+      const bandX = isMobile ? 0.14 : 0.19;
+      const bandY = isMobile ? 0.12 : 0.15;
+      const largeCount = isMobile ? 48 : 92;
+      const microCount = isMobile ? 75 : 150;
+
+      const list: GlassDroplet[] = [];
+
+      // Prominent glass beads + active sliding rivulets
+      for (let i = 0; i < largeCount; i++) {
+        const pt = randomPerimeterPoint(bandX, bandY);
+        const isSlider = i % 5 === 0;
+        const speed = isSlider ? 0.45 + Math.random() * 0.75 : 0;
+        list.push({
+          x: pt.x,
+          y: pt.y,
+          r: isSlider ? 4.4 + Math.random() * 3.8 : 2.2 + Math.random() * 4.2,
+          vy: speed,
+          baseSpeed: speed,
+          sliding: isSlider,
+          wobblePhase: Math.random() * Math.PI * 2,
+          trail: [],
+        });
+      }
+
+      // Fine misty condensation beads hugging the edges
+      for (let i = 0; i < microCount; i++) {
+        const pt = randomPerimeterPoint(bandX * 0.9, bandY * 0.9);
+        list.push({
+          x: pt.x,
+          y: pt.y,
+          r: 0.9 + Math.random() * 1.4,
+          vy: 0,
+          baseSpeed: 0,
+          sliding: false,
+          wobblePhase: 0,
+          trail: [],
+          isMicro: true,
+        });
+      }
+
+      return list;
+    };
+
+    const createCondensationMist = (): GlassDroplet[] => {
+      const isMobile = width < 640;
+      const count = isMobile ? 70 : 140;
+      return Array.from({ length: count }, () => {
+        const pt = randomPerimeterPoint(isMobile ? 0.14 : 0.18, isMobile ? 0.11 : 0.14);
         return {
           x: pt.x,
           y: pt.y,
-          r: isLarge ? 3.2 + Math.random() * 2.6 : 1.3 + Math.random() * 1.9,
-          vy: isLarge ? 0.35 + Math.random() * 0.55 : 0,
-          sliding: isLarge,
-          wobblePhase: Math.random() * Math.PI * 2,
+          r: 1.0 + Math.random() * 2.2,
+          vy: 0,
+          baseSpeed: 0,
+          sliding: false,
+          wobblePhase: 0,
           trail: [],
+          isMicro: true,
         };
       });
     };
@@ -121,70 +224,108 @@ export function WeatherGlassOverlay({
         { x: 0, y: height, baseAngle: -Math.PI * 0.25 },
         { x: width, y: height, baseAngle: -Math.PI * 0.75 },
       ];
-      const maxLen = Math.min(width, height) * 0.16;
+      const maxLen = Math.min(width, height) * 0.25;
 
       cornerOrigins.forEach((corner) => {
-        for (let i = 0; i < 6; i++) {
-          const offsetAngle = corner.baseAngle + (i - 2.5) * 0.22;
+        for (let i = 0; i < 9; i++) {
+          const offsetAngle = corner.baseAngle + (i - 4) * 0.19;
           branches.push({
             x: corner.x,
             y: corner.y,
             angle: offsetAngle,
-            len: maxLen * (0.55 + ((i * 17) % 10) * 0.045),
-            depth: 2,
+            len: maxLen * (0.58 + ((i * 17) % 10) * 0.048),
+            depth: 3,
           });
         }
       });
+
+      // Side-edge frost needles creeping in along left/right glass borders
+      const sideCount = Math.max(6, Math.floor(height / 140));
+      for (let i = 1; i < sideCount; i++) {
+        const yPos = (i / sideCount) * height;
+        const sideLen = Math.min(width, height) * 0.095;
+        branches.push({ x: 0, y: yPos, angle: (i % 2 === 0 ? 0.25 : -0.25), len: sideLen, depth: 2 });
+        branches.push({ x: width, y: yPos, angle: Math.PI + (i % 2 === 0 ? -0.25 : 0.25), len: sideLen, depth: 2 });
+      }
       return branches;
     };
 
-    let droplets = createRainDroplets();
+    let droplets =
+      weather === 'rain' ? createRainDroplets() : createCondensationMist();
     let frostBranches = buildCornerFrost();
 
     const handleResize = () => {
       width = canvas.width = window.innerWidth;
       height = canvas.height = window.innerHeight;
-      droplets = createRainDroplets();
+      droplets =
+        weather === 'rain' ? createRainDroplets() : createCondensationMist();
       frostBranches = buildCornerFrost();
-      if (prefersReduced) {
-        drawStatic();
-      }
+      drawStaticOrFrame();
     };
     window.addEventListener('resize', handleResize);
 
-    const drawDroplet = (d: GlassDroplet) => {
-      // Wet trail behind sliding glass droplets
+    // Draw a realistic refracting water droplet on glass
+    const drawGlassDroplet = (d: GlassDroplet) => {
+      // Wet water rivulet trail behind sliding droplet
       if (d.trail.length > 1) {
-        ctx.beginPath();
-        ctx.moveTo(d.trail[0].x, d.trail[0].y);
         for (let i = 1; i < d.trail.length; i++) {
-          ctx.lineTo(d.trail[i].x, d.trail[i].y);
+          const prev = d.trail[i - 1];
+          const curr = d.trail[i];
+          const progress = i / d.trail.length;
+          ctx.beginPath();
+          ctx.moveTo(prev.x, prev.y);
+          ctx.lineTo(curr.x, curr.y);
+          ctx.strokeStyle = isLight
+            ? `rgba(71, 85, 105, ${0.24 * progress})`
+            : `rgba(226, 232, 240, ${0.28 * progress})`;
+          ctx.lineWidth = Math.max(1, d.r * 0.45 * progress);
+          ctx.lineCap = 'round';
+          ctx.stroke();
         }
-        ctx.strokeStyle = isLight
-          ? 'rgba(109, 40, 217, 0.16)'
-          : 'rgba(216, 180, 254, 0.16)';
-        ctx.lineWidth = Math.max(1, d.r * 0.42);
-        ctx.lineCap = 'round';
-        ctx.stroke();
       }
 
-      // Translucent glass water bead
+      if (d.isMicro) {
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+        ctx.fillStyle = isLight
+          ? 'rgba(255, 255, 255, 0.55)'
+          : 'rgba(226, 232, 240, 0.24)';
+        ctx.fill();
+        ctx.strokeStyle = isLight
+          ? 'rgba(100, 116, 139, 0.28)'
+          : 'rgba(255, 255, 255, 0.16)';
+        ctx.lineWidth = 0.6;
+        ctx.stroke();
+        return;
+      }
+
+      // Outer refraction rim shadow (gives 3D lens bulge on glass)
+      ctx.beginPath();
+      ctx.arc(d.x, d.y + 0.6, d.r + 0.6, 0, Math.PI * 2);
+      ctx.fillStyle = isLight
+        ? 'rgba(30, 41, 59, 0.18)'
+        : 'rgba(0, 0, 0, 0.45)';
+      ctx.fill();
+
+      // Translucent droplet dome gradient (bright caustic at bottom, darker upper refraction)
       const grad = ctx.createRadialGradient(
-        d.x - d.r * 0.3,
-        d.y - d.r * 0.3,
-        0.2,
+        d.x,
+        d.y + d.r * 0.28,
+        d.r * 0.1,
         d.x,
         d.y,
         d.r
       );
       if (isLight) {
-        grad.addColorStop(0, 'rgba(255, 255, 255, 0.85)');
-        grad.addColorStop(0.55, 'rgba(196, 181, 253, 0.28)');
-        grad.addColorStop(1, 'rgba(109, 40, 217, 0.36)');
+        grad.addColorStop(0, 'rgba(255, 255, 255, 0.88)');
+        grad.addColorStop(0.55, 'rgba(224, 231, 255, 0.36)');
+        grad.addColorStop(0.88, 'rgba(71, 85, 105, 0.28)');
+        grad.addColorStop(1, 'rgba(255, 255, 255, 0.65)');
       } else {
-        grad.addColorStop(0, 'rgba(255, 255, 255, 0.65)');
-        grad.addColorStop(0.55, 'rgba(167, 139, 250, 0.18)');
-        grad.addColorStop(1, 'rgba(192, 132, 252, 0.32)');
+        grad.addColorStop(0, 'rgba(216, 180, 254, 0.42)');
+        grad.addColorStop(0.52, 'rgba(139, 92, 246, 0.16)');
+        grad.addColorStop(0.88, 'rgba(255, 255, 255, 0.22)');
+        grad.addColorStop(1, 'rgba(255, 255, 255, 0.46)');
       }
 
       ctx.beginPath();
@@ -192,10 +333,23 @@ export function WeatherGlassOverlay({
       ctx.fillStyle = grad;
       ctx.fill();
 
-      // Tiny specular highlight dot on droplet upper-left
+      // Thin crisp droplet glass rim
+      ctx.strokeStyle = isLight
+        ? 'rgba(255, 255, 255, 0.72)'
+        : 'rgba(255, 255, 255, 0.34)';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+
+      // Sharp upper-left specular glint
       ctx.beginPath();
-      ctx.arc(d.x - d.r * 0.32, d.y - d.r * 0.32, Math.max(0.6, d.r * 0.24), 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.82)';
+      ctx.arc(
+        d.x - d.r * 0.34,
+        d.y - d.r * 0.34,
+        Math.max(0.8, d.r * 0.25),
+        0,
+        Math.PI * 2
+      );
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
       ctx.fill();
     };
 
@@ -206,7 +360,7 @@ export function WeatherGlassOverlay({
       len: number,
       depth: number
     ) => {
-      if (depth < 0 || len < 6) return;
+      if (depth < 0 || len < 5) return;
       const x2 = x + Math.cos(angle) * len;
       const y2 = y + Math.sin(angle) * len;
 
@@ -214,64 +368,67 @@ export function WeatherGlassOverlay({
       ctx.moveTo(x, y);
       ctx.lineTo(x2, y2);
       ctx.strokeStyle = isLight
-        ? `rgba(56, 189, 248, ${0.18 + depth * 0.08})`
-        : `rgba(224, 242, 254, ${0.14 + depth * 0.09})`;
-      ctx.lineWidth = 0.7 + depth * 0.35;
+        ? `rgba(14, 165, 233, ${0.22 + depth * 0.08})`
+        : `rgba(224, 242, 254, ${0.20 + depth * 0.09})`;
+      ctx.lineWidth = 0.75 + depth * 0.38;
       ctx.stroke();
 
-      const midX = x + Math.cos(angle) * (len * 0.58);
-      const midY = y + Math.sin(angle) * (len * 0.58);
-      drawFrostSegment(midX, midY, angle + 0.55, len * 0.52, depth - 1);
-      drawFrostSegment(midX, midY, angle - 0.55, len * 0.52, depth - 1);
+      const midX = x + Math.cos(angle) * (len * 0.56);
+      const midY = y + Math.sin(angle) * (len * 0.56);
+      drawFrostSegment(midX, midY, angle + 0.52, len * 0.54, depth - 1);
+      drawFrostSegment(midX, midY, angle - 0.52, len * 0.54, depth - 1);
     };
 
-    const drawStatic = () => {
+    const drawStaticOrFrame = () => {
       ctx.clearRect(0, 0, width, height);
       if (weather === 'rain') {
-        droplets.forEach(drawDroplet);
+        droplets.forEach(drawGlassDroplet);
       } else if (weather === 'snow') {
         frostBranches.forEach((b) =>
           drawFrostSegment(b.x, b.y, b.angle, b.len, b.depth)
         );
+        // Subtle frosted ice grains along corners
+        droplets.slice(0, 80).forEach(drawGlassDroplet);
+      } else if (weather === 'cloudy' || weather === 'dawn') {
+        droplets.forEach(drawGlassDroplet);
       }
     };
 
-    if (prefersReduced || (weather !== 'rain' && weather !== 'snow')) {
-      drawStatic();
+    if (prefersReduced || weather !== 'rain') {
+      drawStaticOrFrame();
       return () => {
         window.removeEventListener('resize', handleResize);
       };
     }
 
-    if (weather === 'snow') {
-      // Static corner frost filigree + subtle breathing opacity via CSS vignette
-      drawStatic();
-      return () => {
-        window.removeEventListener('resize', handleResize);
-      };
-    }
-
-    // Rain droplet glass simulation along viewport perimeter
+    // Live raindrop sliding physics on the glass window
     let tick = 0;
     const renderRainGlass = () => {
-      tick += 0.02;
+      tick += 0.025;
       ctx.clearRect(0, 0, width, height);
+
+      const isMobile = width < 640;
+      const bandX = isMobile ? 0.14 : 0.19;
+      const bandY = isMobile ? 0.12 : 0.15;
 
       for (const d of droplets) {
         if (d.sliding) {
-          d.y += d.vy + Math.max(0, Math.sin(tick + d.wobblePhase) * 0.25);
-          d.x += Math.sin(tick * 1.4 + d.wobblePhase) * 0.14;
-          d.trail.push({ x: d.x, y: d.y });
-          if (d.trail.length > 18) d.trail.shift();
+          // Stick-slip realistic raindrop gravity trickle down glass
+          const pulse = Math.sin(tick * 1.3 + d.wobblePhase);
+          const stepY = pulse > -0.35 ? d.baseSpeed * (0.7 + Math.max(0, pulse) * 1.1) : d.baseSpeed * 0.12;
+          d.y += stepY;
+          d.x += Math.sin(tick * 1.9 + d.wobblePhase) * 0.24;
+          d.trail.push({ x: d.x, y: d.y, r: d.r });
+          if (d.trail.length > 28) d.trail.shift();
 
-          if (d.y > height + 12) {
-            const pt = randomPerimeterPoint(width < 640 ? 0.10 : 0.12);
+          if (d.y > height + 16) {
+            const pt = randomPerimeterPoint(bandX, bandY);
             d.x = pt.x;
-            d.y = -8;
+            d.y = -10;
             d.trail = [];
           }
         }
-        drawDroplet(d);
+        drawGlassDroplet(d);
       }
 
       animId = window.requestAnimationFrame(renderRainGlass);
@@ -285,19 +442,49 @@ export function WeatherGlassOverlay({
     };
   }, [weather, isLight]);
 
+  // Subtle foreground parallax on pointer movement for multi-layer depth
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const handleMove = (e: PointerEvent) => {
+      const dx = (e.clientX / Math.max(1, window.innerWidth) - 0.5) * -10;
+      const dy = (e.clientY / Math.max(1, window.innerHeight) - 0.5) * -8;
+      canvas.style.transform = `translate3d(${dx.toFixed(1)}px, ${dy.toFixed(1)}px, 0) scale(1.02)`;
+    };
+    window.addEventListener('pointermove', handleMove, { passive: true });
+    return () => window.removeEventListener('pointermove', handleMove);
+  }, []);
+
   return (
     <div
       aria-hidden="true"
       className="pointer-events-none fixed inset-0 z-20 overflow-hidden"
     >
-      {/* Perimeter atmospheric glass condensation / frost vignette */}
+      {/* Frosted / steamed glass refraction along the viewport perimeter */}
       <div
         className="absolute inset-0 transition-all duration-700"
-        style={edgeVignetteStyle}
+        style={frostedBlurStyle}
       />
 
-      {/* Perimeter raindrops (rain) or corner frost crystals (snow) */}
-      <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
+      {/* Condensation mist / icy frost vignette + subtle glass rim bevel */}
+      <div
+        className="absolute inset-0 transition-all duration-700"
+        style={edgeTintStyle}
+      />
+
+      {/* Diagonal window glass surface reflection sheen */}
+      <div
+        className="absolute inset-0 transition-opacity duration-700"
+        style={glassReflectionStyle}
+      />
+
+      {/* Glass raindrops, condensation dew, and frost ice-fern crystals */}
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 h-full w-full transition-transform duration-300 ease-out"
+      />
     </div>
   );
 }

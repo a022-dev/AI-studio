@@ -1,8 +1,18 @@
-import { ListMusic, Pause, Play, SkipBack, SkipForward, Volume2, VolumeX } from 'lucide-react';
+import {
+  ListMusic,
+  Maximize2,
+  Pause,
+  Play,
+  SkipBack,
+  SkipForward,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
 import { motion } from 'motion/react';
 import { WEATHER_THEMES } from '../data/curationData';
 import { PageId, Playlist, Track } from '../types/music';
 import { AudioVisualizer } from './AudioVisualizer';
+import { WaveformSeekbar } from './WaveformSeekbar';
 
 interface MiniPlayerProps {
   playlist: Playlist;
@@ -20,6 +30,7 @@ interface MiniPlayerProps {
   onSeek: (seconds: number) => void;
   onToggleMute: () => void;
   onOpenPlaylistDetail: () => void;
+  onOpenTurntable: () => void;
 }
 
 const MOBILE_TABS: { id: PageId; label: string }[] = [
@@ -52,6 +63,7 @@ export function MiniPlayer({
   onSeek,
   onToggleMute,
   onOpenPlaylistDetail,
+  onOpenTurntable,
 }: MiniPlayerProps) {
   const theme = WEATHER_THEMES[playlist.weather];
   const progressPercent = Math.min(
@@ -64,8 +76,8 @@ export function MiniPlayer({
       aria-label="하단 미니 오디오 플레이어 및 모바일 내비게이션"
       className="fixed inset-x-0 bottom-0 z-50 border-t border-zinc-200 bg-white/95 dark:border-white/[0.1] dark:bg-[#161618]/95 backdrop-blur-lg transition-colors"
     >
-      {/* Interactive top progress hairline */}
-      <div className="relative h-1 w-full bg-zinc-200 dark:bg-white/10">
+      {/* Mobile-only interactive top progress hairline */}
+      <div className="relative h-1 w-full bg-zinc-200 dark:bg-white/10 md:hidden">
         <div
           className="h-full transition-all duration-150"
           style={{
@@ -86,11 +98,12 @@ export function MiniPlayer({
 
       {/* Player Bar: Compact 54px on mobile, 68px on desktop */}
       <div className="mx-auto flex h-[54px] md:h-[68px] max-w-6xl items-center justify-between gap-3 px-3 sm:px-6 lg:px-8">
-        {/* Left: Spinning disc + current track info + live equalizer */}
+        {/* Left: Spinning disc + current track info */}
         <button
           type="button"
-          onClick={onOpenPlaylistDetail}
-          className="flex min-w-0 flex-1 items-center gap-2.5 md:gap-3 text-left cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DB954] rounded-lg"
+          onClick={onOpenTurntable}
+          aria-label="풀스크린 턴테이블 몰입 모드 열기"
+          className="flex min-w-0 flex-1 md:flex-initial md:w-[230px] lg:w-[260px] items-center gap-2.5 md:gap-3 text-left cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DB954] rounded-lg"
         >
           <div className="relative h-9 w-9 md:h-11 md:w-11 shrink-0 overflow-hidden rounded-full border border-zinc-300 bg-zinc-200 dark:border-white/15 dark:bg-[#262629]">
             <img
@@ -116,71 +129,89 @@ export function MiniPlayer({
               <span className="hidden sm:inline">{theme.label} 무드</span>
             </p>
           </div>
-          <div className="hidden md:block shrink-0 pr-2">
+          <div className="hidden lg:block shrink-0 pr-1">
             <AudioVisualizer
               isPlaying={isPlaying}
               accentHex={theme.accentHex}
-              barCount={6}
-              heightClass="h-5"
+              barCount={5}
+              heightClass="h-4"
             />
           </div>
         </button>
 
-        {/* Center / Mobile Right: Playback controls */}
-        <div className="flex items-center gap-1 md:gap-3 shrink-0">
+        {/* Center: Playback controls + Desktop Waveform Seekbar */}
+        <div className="flex items-center gap-1 md:flex-1 md:justify-center md:gap-4 shrink-0">
           <button
             type="button"
-            onClick={onToggleMute}
-            aria-label={isMuted ? '소리 켜기' : '음소거'}
-            className="flex md:hidden h-10 w-10 items-center justify-center rounded-full text-zinc-600 dark:text-zinc-300 cursor-pointer"
+            onClick={onOpenTurntable}
+            aria-label="턴테이블 모드 열기"
+            className="flex md:hidden h-9 w-9 items-center justify-center rounded-full text-zinc-600 dark:text-zinc-300 cursor-pointer"
           >
-            {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+            <Maximize2 className="h-4 w-4" />
           </button>
 
-          <button
-            type="button"
-            onClick={onPrev}
-            aria-label="이전 곡"
-            className="hidden sm:flex h-10 w-10 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DB954]"
-          >
-            <SkipBack className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1 md:gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={onPrev}
+              aria-label="이전 곡"
+              className="hidden sm:flex h-9 w-9 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DB954]"
+            >
+              <SkipBack className="h-4 w-4" />
+            </button>
 
-          <button
-            type="button"
-            onClick={onTogglePlay}
-            aria-label={isPlaying ? '일시정지' : '재생'}
-            className="flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-full text-black transition-transform duration-150 hover:scale-105 active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-white"
-            style={{ backgroundColor: theme.accentHex }}
-          >
-            {isPlaying ? (
-              <Pause className="h-4 w-4 fill-current" />
-            ) : (
-              <Play className="h-4 w-4 fill-current translate-x-[1px]" />
-            )}
-          </button>
+            <button
+              type="button"
+              onClick={onTogglePlay}
+              aria-label={isPlaying ? '일시정지' : '재생'}
+              className="flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-full text-black transition-transform duration-150 hover:scale-105 active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-white"
+              style={{ backgroundColor: theme.accentHex }}
+            >
+              {isPlaying ? (
+                <Pause className="h-4 w-4 fill-current" />
+              ) : (
+                <Play className="h-4 w-4 fill-current translate-x-[1px]" />
+              )}
+            </button>
 
-          <button
-            type="button"
-            onClick={onNext}
-            aria-label="다음 곡"
-            className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DB954]"
-          >
-            <SkipForward className="h-4 w-4" />
-          </button>
+            <button
+              type="button"
+              onClick={onNext}
+              aria-label="다음 곡"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DB954]"
+            >
+              <SkipForward className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Desktop SoundCloud-style Waveform Seekbar */}
+          <div className="hidden md:flex flex-1 max-w-[260px] lg:max-w-[320px] items-center gap-2.5">
+            <span className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums w-10 text-right shrink-0">
+              {formatSeconds(currentTime)}
+            </span>
+            <WaveformSeekbar
+              trackId={track.id}
+              currentTime={currentTime}
+              durationSeconds={track.durationSeconds}
+              isPlaying={isPlaying}
+              accentHex={theme.accentHex}
+              barCount={36}
+              heightClass="h-6"
+              onSeek={onSeek}
+            />
+            <span className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums w-10 shrink-0">
+              {track.duration}
+            </span>
+          </div>
         </div>
 
-        {/* Desktop Right: Time readout, mute toggle, theme toggle & tracklist trigger */}
-        <div className="hidden md:flex flex-1 items-center justify-end gap-2">
-          <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400 tabular-nums whitespace-nowrap mr-1">
-            {formatSeconds(currentTime)} / {track.duration}
-          </span>
-
+        {/* Desktop Right: Mute, Theme toggle, Turntable expand & Tracklist */}
+        <div className="hidden md:flex items-center justify-end gap-1.5 shrink-0">
           <button
             type="button"
             onClick={onToggleMute}
             aria-label={isMuted ? '소리 켜기' : '음소거'}
-            className="flex h-10 w-10 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DB954]"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DB954]"
           >
             {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
           </button>
@@ -188,19 +219,28 @@ export function MiniPlayer({
           <button
             type="button"
             onClick={onToggleTheme}
-            className="flex h-10 items-center rounded-lg border border-zinc-300 px-3 text-xs font-medium text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-white/10 dark:text-zinc-300 dark:hover:border-white/20 dark:hover:bg-white/5 dark:hover:text-white cursor-pointer whitespace-nowrap shrink-0"
+            className="hidden lg:flex h-9 items-center rounded-lg border border-zinc-300 px-2.5 text-xs font-medium text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-white/10 dark:text-zinc-300 dark:hover:border-white/20 dark:hover:bg-white/5 dark:hover:text-white cursor-pointer whitespace-nowrap shrink-0"
           >
-            {themeMode === 'dark' ? '라이트 테마' : '다크 테마'}
+            {themeMode === 'dark' ? '라이트' : '다크'}
           </button>
 
           <button
             type="button"
             onClick={onOpenPlaylistDetail}
             aria-label="현재 플레이리스트 트랙리스트 열기"
-            className="flex h-10 items-center gap-1.5 rounded-lg border border-zinc-300 px-3 text-xs font-medium text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-white/10 dark:text-zinc-300 dark:hover:border-white/20 dark:hover:bg-white/5 dark:hover:text-white cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DB954]"
+            className="flex h-9 items-center gap-1.5 rounded-lg border border-zinc-300 px-2.5 text-xs font-medium text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-white/10 dark:text-zinc-300 dark:hover:border-white/20 dark:hover:bg-white/5 dark:hover:text-white cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DB954]"
           >
-            <ListMusic className="h-4 w-4" />
+            <ListMusic className="h-3.5 w-3.5" />
             <span>트랙리스트</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenTurntable}
+            aria-label="풀스크린 턴테이블 모드"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-300 text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-white/10 dark:text-zinc-300 dark:hover:border-white/20 dark:hover:bg-white/5 dark:hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DB954]"
+          >
+            <Maximize2 className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>

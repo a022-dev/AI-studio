@@ -28,6 +28,8 @@ export function ExplorePage({
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string>(
     filteredPlaylists[0]?.id ?? PLAYLISTS[0].id
   );
+  const [hoveredTrack, setHoveredTrack] = useState<{ track: Track; idx: number } | null>(null);
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const handleWeatherChange = (key: WeatherKey) => {
     setSelectedWeather(key);
@@ -271,12 +273,22 @@ export function ExplorePage({
                 </p>
 
                 {/* Track Rows */}
-                <div className="mt-6 divide-y divide-zinc-200 border-t border-zinc-200 dark:divide-white/[0.06] dark:border-white/[0.08]">
+                <div
+                  className="mt-6 divide-y divide-zinc-200 border-t border-zinc-200 dark:divide-white/[0.06] dark:border-white/[0.08]"
+                  onMouseLeave={() => setHoveredTrack(null)}
+                >
                   {activePlaylist.tracks.map((track, idx) => {
                     const isCurrent = activeTrackId === track.id;
                     return (
                       <div
                         key={track.id}
+                        onMouseEnter={(e) => {
+                          setHoveredTrack({ track, idx });
+                          setCursorPos({ x: e.clientX, y: e.clientY });
+                        }}
+                        onMouseMove={(e) => {
+                          setCursorPos({ x: e.clientX, y: e.clientY });
+                        }}
                         className={`flex items-center justify-between gap-4 py-3.5 px-2 rounded-lg transition-colors ${
                           isCurrent
                             ? 'bg-zinc-100 dark:bg-white/[0.05]'
@@ -337,6 +349,42 @@ export function ExplorePage({
             </div>
           </div>
         </motion.div>
+      </AnimatePresence>
+
+      {/* Desktop Floating Track Artwork Preview following cursor */}
+      <AnimatePresence>
+        {hoveredTrack && (
+          <motion.div
+            aria-hidden="true"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{
+              opacity: 1,
+              scale: 1,
+              x: cursorPos.x + 20,
+              y: cursorPos.y - 36,
+            }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 32, opacity: { duration: 0.14 } }}
+            className="pointer-events-none fixed top-0 left-0 z-40 hidden md:flex items-center gap-3 rounded-xl border border-zinc-200/90 bg-white/90 p-2.5 shadow-2xl backdrop-blur-md dark:border-white/15 dark:bg-[#1E1E1E]/92"
+          >
+            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-zinc-300 dark:border-white/20">
+              <img
+                src={activePlaylist.coverUrl}
+                alt=""
+                className="h-full w-full object-cover animate-[spin_6s_linear_infinite]"
+              />
+              <span className="absolute inset-0 m-auto h-2.5 w-2.5 rounded-full border border-white/50 bg-[#121212]" />
+            </div>
+            <div className="max-w-[170px] pr-1">
+              <p className="truncate text-xs font-semibold text-zinc-900 dark:text-white">
+                {String(hoveredTrack.idx + 1).padStart(2, '0')}. {hoveredTrack.track.title}
+              </p>
+              <p className="truncate font-mono text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+                {hoveredTrack.track.bpm} BPM · {hoveredTrack.track.duration}
+              </p>
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );
