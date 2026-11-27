@@ -1,0 +1,6 @@
+{
+  "name": "MY VIBE",
+  "description": "실시간 날씨와 어울리는 음악을 큐레이션하고 추천곡을 나누는 다크 모드 음악 웹진",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
