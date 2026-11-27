@@ -115,7 +115,7 @@ export function ExplorePage({
           <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/[0.08] dark:bg-[#1E1E1E] dark:shadow-none sm:p-8">
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-center">
               <div className="space-y-2 lg:col-span-7">
-                <p className="text-xs font-semibold" style={{ color: theme.accentHex }}>
+                <p className={`text-xs font-semibold ${theme.accentTextClass}`}>
                   {theme.label} · {theme.englishLabel}
                 </p>
                 <h2 className="font-display text-2xl font-bold text-zinc-900 dark:text-white">
@@ -175,6 +175,8 @@ export function ExplorePage({
                           src={playlist.coverUrl}
                           alt={`${playlist.title} 커버`}
                           referrerPolicy="no-referrer"
+                          loading="lazy"
+                          decoding="async"
                           className="h-full w-full object-cover"
                         />
                       </div>
@@ -201,8 +203,7 @@ export function ExplorePage({
                               e.stopPropagation();
                               onPlayTrack(playlist, playlist.tracks[0]);
                             }}
-                            className="inline-flex items-center gap-1 font-semibold cursor-pointer"
-                            style={{ color: theme.accentHex }}
+                            className={`inline-flex items-center gap-1 font-semibold cursor-pointer ${theme.accentTextClass}`}
                           >
                             <Play className="h-3.5 w-3.5 fill-current" />
                             <span>재생</span>

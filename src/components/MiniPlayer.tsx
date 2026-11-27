@@ -1,6 +1,7 @@
 import { ListMusic, Pause, Play, SkipBack, SkipForward, Volume2, VolumeX } from 'lucide-react';
+import { motion } from 'motion/react';
 import { WEATHER_THEMES } from '../data/curationData';
-import { Playlist, Track } from '../types/music';
+import { PageId, Playlist, Track } from '../types/music';
 import { AudioVisualizer } from './AudioVisualizer';
 
 interface MiniPlayerProps {
@@ -10,6 +11,8 @@ interface MiniPlayerProps {
   isMuted: boolean;
   currentTime: number;
   themeMode: 'light' | 'dark';
+  activePage: PageId;
+  onNavigate: (page: PageId) => void;
   onToggleTheme: () => void;
   onTogglePlay: () => void;
   onPrev: () => void;
@@ -18,6 +21,13 @@ interface MiniPlayerProps {
   onToggleMute: () => void;
   onOpenPlaylistDetail: () => void;
 }
+
+const MOBILE_TABS: { id: PageId; label: string }[] = [
+  { id: 'main', label: '메인' },
+  { id: 'explore', label: '날씨별' },
+  { id: 'recommend', label: '추천·제보' },
+  { id: 'about', label: '소개' },
+];
 
 function formatSeconds(sec: number): string {
   const safe = Math.max(0, Math.floor(sec));
@@ -33,6 +43,8 @@ export function MiniPlayer({
   isMuted,
   currentTime,
   themeMode,
+  activePage,
+  onNavigate,
   onToggleTheme,
   onTogglePlay,
   onPrev,
@@ -49,10 +61,10 @@ export function MiniPlayer({
 
   return (
     <aside
-      aria-label="하단 미니 오디오 플레이어"
+      aria-label="하단 미니 오디오 플레이어 및 모바일 내비게이션"
       className="fixed inset-x-0 bottom-0 z-50 border-t border-zinc-200 bg-white/95 dark:border-white/[0.1] dark:bg-[#161618]/95 backdrop-blur-lg transition-colors"
     >
-      {/* Interactive top progress hairline for mobile & quick scrubbing */}
+      {/* Interactive top progress hairline */}
       <div className="relative h-1 w-full bg-zinc-200 dark:bg-white/10">
         <div
           className="h-full transition-all duration-150"
@@ -72,14 +84,15 @@ export function MiniPlayer({
         />
       </div>
 
-      <div className="mx-auto flex h-[68px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+      {/* Player Bar: Compact 54px on mobile, 68px on desktop */}
+      <div className="mx-auto flex h-[54px] md:h-[68px] max-w-6xl items-center justify-between gap-3 px-3 sm:px-6 lg:px-8">
         {/* Left: Spinning disc + current track info + live equalizer */}
         <button
           type="button"
           onClick={onOpenPlaylistDetail}
-          className="flex min-w-0 flex-1 items-center gap-3 text-left cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DB954] rounded-lg"
+          className="flex min-w-0 flex-1 items-center gap-2.5 md:gap-3 text-left cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DB954] rounded-lg"
         >
-          <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full border border-zinc-300 bg-zinc-200 dark:border-white/15 dark:bg-[#262629]">
+          <div className="relative h-9 w-9 md:h-11 md:w-11 shrink-0 overflow-hidden rounded-full border border-zinc-300 bg-zinc-200 dark:border-white/15 dark:bg-[#262629]">
             <img
               src={playlist.coverUrl}
               alt={`${playlist.title} 앨범 커버`}
@@ -89,17 +102,17 @@ export function MiniPlayer({
               }`}
             />
             <span
-              className="pointer-events-none absolute inset-0 m-auto h-2.5 w-2.5 rounded-full border border-zinc-400 bg-white dark:border-white/30 dark:bg-[#161618]"
+              className="pointer-events-none absolute inset-0 m-auto h-2 w-2 md:h-2.5 md:w-2.5 rounded-full border border-zinc-400 bg-white dark:border-white/30 dark:bg-[#161618]"
               aria-hidden="true"
             />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-zinc-900 dark:text-white group-hover:underline">
+            <p className="truncate text-xs md:text-sm font-semibold text-zinc-900 dark:text-white group-hover:underline">
               {track.title}
             </p>
-            <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="truncate text-[11px] md:text-xs text-zinc-500 dark:text-zinc-400">
               <span>{track.artist}</span>
-              <span className="mx-1.5 text-zinc-400 dark:text-zinc-600" aria-hidden="true">·</span>
+              <span className="hidden sm:inline mx-1.5 text-zinc-400 dark:text-zinc-600" aria-hidden="true">·</span>
               <span className="hidden sm:inline">{theme.label} 무드</span>
             </p>
           </div>
@@ -113,45 +126,52 @@ export function MiniPlayer({
           </div>
         </button>
 
-        {/* Center: Playback controls */}
-        <div className="flex flex-col items-center gap-1 shrink-0">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <button
-              type="button"
-              onClick={onPrev}
-              aria-label="이전 곡"
-              className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DB954]"
-            >
-              <SkipBack className="h-4 w-4" />
-            </button>
+        {/* Center / Mobile Right: Playback controls */}
+        <div className="flex items-center gap-1 md:gap-3 shrink-0">
+          <button
+            type="button"
+            onClick={onToggleMute}
+            aria-label={isMuted ? '소리 켜기' : '음소거'}
+            className="flex md:hidden h-10 w-10 items-center justify-center rounded-full text-zinc-600 dark:text-zinc-300 cursor-pointer"
+          >
+            {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+          </button>
 
-            <button
-              type="button"
-              onClick={onTogglePlay}
-              aria-label={isPlaying ? '일시정지' : '재생'}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-black transition-transform duration-150 hover:scale-105 active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-white"
-              style={{ backgroundColor: theme.accentHex }}
-            >
-              {isPlaying ? (
-                <Pause className="h-4 w-4 fill-current" />
-              ) : (
-                <Play className="h-4 w-4 fill-current translate-x-[1px]" />
-              )}
-            </button>
+          <button
+            type="button"
+            onClick={onPrev}
+            aria-label="이전 곡"
+            className="hidden sm:flex h-10 w-10 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DB954]"
+          >
+            <SkipBack className="h-4 w-4" />
+          </button>
 
-            <button
-              type="button"
-              onClick={onNext}
-              aria-label="다음 곡"
-              className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DB954]"
-            >
-              <SkipForward className="h-4 w-4" />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={onTogglePlay}
+            aria-label={isPlaying ? '일시정지' : '재생'}
+            className="flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-full text-black transition-transform duration-150 hover:scale-105 active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-white"
+            style={{ backgroundColor: theme.accentHex }}
+          >
+            {isPlaying ? (
+              <Pause className="h-4 w-4 fill-current" />
+            ) : (
+              <Play className="h-4 w-4 fill-current translate-x-[1px]" />
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={onNext}
+            aria-label="다음 곡"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DB954]"
+          >
+            <SkipForward className="h-4 w-4" />
+          </button>
         </div>
 
-        {/* Right: Time readout, mute toggle, theme toggle & tracklist trigger */}
-        <div className="hidden sm:flex flex-1 items-center justify-end gap-2">
+        {/* Desktop Right: Time readout, mute toggle, theme toggle & tracklist trigger */}
+        <div className="hidden md:flex flex-1 items-center justify-end gap-2">
           <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400 tabular-nums whitespace-nowrap mr-1">
             {formatSeconds(currentTime)} / {track.duration}
           </span>
@@ -184,6 +204,39 @@ export function MiniPlayer({
           </button>
         </div>
       </div>
+
+      {/* Dedicated Mobile Bottom Thumb Navigation Dock (<= 15% combined viewport height) */}
+      <nav
+        aria-label="모바일 하단 탭 메뉴"
+        className="grid grid-cols-4 border-t border-zinc-200 dark:border-white/[0.08] md:hidden"
+      >
+        {MOBILE_TABS.map((tab) => {
+          const isActive = activePage === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => onNavigate(tab.id)}
+              className={`relative flex h-12 items-center justify-center text-xs font-medium transition-colors cursor-pointer whitespace-nowrap ${
+                isActive
+                  ? 'text-zinc-900 dark:text-white font-semibold'
+                  : 'text-zinc-500 dark:text-zinc-400'
+              }`}
+            >
+              {isActive && (
+                <motion.span
+                  layoutId="mobile-tab-indicator"
+                  transition={{ type: 'spring', stiffness: 450, damping: 34 }}
+                  className="absolute top-0 inset-x-4 h-[2px] rounded-full"
+                  style={{ backgroundColor: theme.accentHex }}
+                  aria-hidden="true"
+                />
+              )}
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </nav>
     </aside>
   );
 }

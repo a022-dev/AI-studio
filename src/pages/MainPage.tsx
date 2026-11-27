@@ -1,8 +1,11 @@
 import { ArrowRight, ExternalLink, Pause, Play, RefreshCw } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AudioVisualizer } from '../components/AudioVisualizer';
+import { PWAInstallButton } from '../components/PWAInstallButton';
 import { TiltAlbumCard } from '../components/TiltAlbumCard';
+import { VinylSpectrumRing } from '../components/VinylSpectrumRing';
+import { WeatherMarqueeBar } from '../components/WeatherMarqueeBar';
 import { CITIES, PLAYLISTS, WEATHER_THEMES } from '../data/curationData';
 import { PageId, Playlist, Track, WeatherData, WeatherKey } from '../types/music';
 
@@ -42,9 +45,14 @@ export function MainPage({
   onNavigate,
 }: MainPageProps) {
   const [activeEmbed, setActiveEmbed] = useState<'spotify' | 'youtube'>('spotify');
+  const [embedLoaded, setEmbedLoaded] = useState(false);
 
   const effectiveWeather: WeatherKey = overrideWeather ?? weatherData.weatherKey;
   const theme = WEATHER_THEMES[effectiveWeather];
+
+  useEffect(() => {
+    setEmbedLoaded(false);
+  }, [effectiveWeather, activeEmbed]);
 
   const heroPlaylist =
     PLAYLISTS.find((p) => p.weather === effectiveWeather) ?? PLAYLISTS[0];
@@ -62,7 +70,7 @@ export function MainPage({
     .filter((p): p is Playlist => Boolean(p));
 
   return (
-    <div className="space-y-16 pb-16">
+    <div className="space-y-12 pb-16">
       {/* 1. Weather Widget + Hero Banner */}
       <section className="pt-8 sm:pt-12">
         {/* Weather Control & Theme Bar */}
@@ -120,30 +128,34 @@ export function MainPage({
               </div>
             </div>
 
-            {/* Light / Dark Theme Segmented Switch */}
-            <div className="flex items-center gap-1 self-start rounded-lg border border-zinc-200 bg-[#F7F6F2] p-1 dark:border-white/[0.06] dark:bg-[#121212] lg:self-auto">
-              <button
-                type="button"
-                onClick={() => onToggleTheme('light')}
-                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap ${
-                  themeMode === 'light'
-                    ? 'bg-white text-zinc-900 shadow-sm'
-                    : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200'
-                }`}
-              >
-                라이트 테마
-              </button>
-              <button
-                type="button"
-                onClick={() => onToggleTheme('dark')}
-                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap ${
-                  themeMode === 'dark'
-                    ? 'bg-[#27272A] text-white shadow-sm'
-                    : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200'
-                }`}
-              >
-                다크 테마
-              </button>
+            {/* PWA Install + Light / Dark Theme Switch */}
+            <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto">
+              <PWAInstallButton />
+
+              <div className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-[#F7F6F2] p-1 dark:border-white/[0.06] dark:bg-[#121212]">
+                <button
+                  type="button"
+                  onClick={() => onToggleTheme('light')}
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap ${
+                    themeMode === 'light'
+                      ? 'bg-white text-zinc-900 shadow-sm'
+                      : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  라이트 테마
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onToggleTheme('dark')}
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap ${
+                    themeMode === 'dark'
+                      ? 'bg-[#27272A] text-white shadow-sm'
+                      : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  다크 테마
+                </button>
+              </div>
             </div>
           </div>
 
@@ -181,10 +193,9 @@ export function MainPage({
                     onClick={() => onSetOverrideWeather(key)}
                     className={`relative rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap ${
                       isSelected
-                        ? 'text-zinc-900 dark:text-white'
+                        ? WEATHER_THEMES[key].accentTextClass
                         : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200'
                     }`}
-                    style={isSelected ? { color: WEATHER_THEMES[key].accentHex } : undefined}
                   >
                     {isSelected && (
                       <motion.span
@@ -215,7 +226,7 @@ export function MainPage({
             <div className="flex flex-col justify-between lg:col-span-6">
               <div className="space-y-5">
                 <div className="flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                  <span className="font-semibold" style={{ color: theme.accentHex }}>
+                  <span className={`font-semibold ${theme.accentTextClass}`}>
                     {overrideWeather ? `${theme.label} 무드 미리보기` : `${weatherData.cityName}의 현재 날씨 큐레이션`}
                   </span>
                   <span aria-hidden="true">·</span>
@@ -288,7 +299,7 @@ export function MainPage({
             </div>
 
             {/* Hero Album Cover with Prominent Emerging Spinning LP Vinyl Disc */}
-            <div className="lg:col-span-6 flex items-center justify-center">
+            <div className="lg:col-span-6 flex items-center justify-center px-4 py-3 sm:p-0">
               <div
                 onClick={() => onPlayPlaylist(heroPlaylist)}
                 role="button"
@@ -311,6 +322,13 @@ export function MainPage({
                       : '-translate-x-4 group-hover:translate-x-1'
                   }`}
                 >
+                  {/* Audio-reactive Circular Spectrum Ring wrapping the outer LP rim */}
+                  <VinylSpectrumRing
+                    isPlaying={isHeroPlaying}
+                    accentHex={theme.accentHex}
+                    themeMode={themeMode}
+                  />
+
                   {/* Spinning Grooved Vinyl Surface */}
                   <div
                     className={`relative h-full w-full rounded-full overflow-hidden ${
@@ -346,6 +364,8 @@ export function MainPage({
                     src={heroPlaylist.coverUrl}
                     alt={`${heroPlaylist.title} 대표 앨범 커버`}
                     referrerPolicy="no-referrer"
+                    fetchPriority="high"
+                    decoding="async"
                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                   />
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent p-5 sm:p-6">
@@ -375,8 +395,11 @@ export function MainPage({
         </AnimatePresence>
       </section>
 
+      {/* Editorial Weather Lyric & Poetic Marquee Strip */}
+      <WeatherMarqueeBar weather={effectiveWeather} bpmRange={heroPlaylist.bpmRange} />
+
       {/* 2. Featured Playlist Grid */}
-      <section className="space-y-6 border-t border-zinc-200 pt-12 dark:border-white/[0.08]">
+      <section className="space-y-6 pt-2">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
@@ -397,7 +420,75 @@ export function MainPage({
           </button>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Mobile Dedicated Horizontal Snap-Scroll Carousel */}
+        <div className="md:hidden -mx-4 flex gap-4 overflow-x-auto snap-x snap-mandatory px-4 pb-2">
+          {featuredPlaylists.map((playlist) => {
+            const cardTheme = WEATHER_THEMES[playlist.weather];
+            const isCardPlaying = isPlaying && activePlaylistId === playlist.id;
+            return (
+              <article
+                key={`mobile-${playlist.id}`}
+                className="snap-start shrink-0 w-[76vw] max-w-[280px] flex flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/[0.08] dark:bg-[#1E1E1E] dark:shadow-none"
+              >
+                <div className="relative aspect-square w-full overflow-hidden bg-zinc-200 dark:bg-[#27272A]">
+                  <img
+                    src={playlist.coverUrl}
+                    alt={`${playlist.title} 앨범 커버`}
+                    referrerPolicy="no-referrer"
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onPlayPlaylist(playlist)}
+                    aria-label={`${playlist.title} 바로 재생`}
+                    className="absolute right-3 bottom-3 flex h-11 w-11 items-center justify-center rounded-full text-black shadow-lg active:scale-95 cursor-pointer"
+                    style={{ backgroundColor: cardTheme.accentHex }}
+                  >
+                    {isCardPlaying ? (
+                      <Pause className="h-4 w-4 fill-current" />
+                    ) : (
+                      <Play className="h-4 w-4 fill-current translate-x-[1px]" />
+                    )}
+                  </button>
+                </div>
+
+                <div className="flex flex-1 flex-col justify-between p-4">
+                  <div className="space-y-1">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                      <span className={`font-medium ${cardTheme.accentTextClass}`}>
+                        {cardTheme.label}
+                      </span>
+                      <span className="mx-1.5 text-zinc-300 dark:text-zinc-600" aria-hidden="true">·</span>
+                      <span>{playlist.genre}</span>
+                    </p>
+                    <h3 className="font-display text-base font-semibold text-zinc-900 dark:text-white truncate">
+                      {playlist.title}
+                    </h3>
+                    <p className="line-clamp-2 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+                      {playlist.description}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between border-t border-zinc-200 pt-3 text-xs text-zinc-500 dark:border-white/[0.06] dark:text-zinc-400">
+                    <span className="font-mono tabular-nums">{playlist.tracks.length}곡</span>
+                    <button
+                      type="button"
+                      onClick={() => onOpenPlaylistDetail(playlist)}
+                      className="min-h-[36px] font-medium text-zinc-800 dark:text-zinc-200 cursor-pointer"
+                    >
+                      트랙리스트 보기
+                    </button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        {/* Desktop 4-Column Interactive Tilt Grid */}
+        <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {featuredPlaylists.map((playlist) => {
             const cardTheme = WEATHER_THEMES[playlist.weather];
             const isCardPlaying = isPlaying && activePlaylistId === playlist.id;
@@ -413,6 +504,8 @@ export function MainPage({
                       src={playlist.coverUrl}
                       alt={`${playlist.title} 앨범 커버`}
                       referrerPolicy="no-referrer"
+                      loading="lazy"
+                      decoding="async"
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                     <button
@@ -434,7 +527,7 @@ export function MainPage({
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400">
                         <p className="truncate">
-                          <span className="font-medium" style={{ color: cardTheme.accentHex }}>
+                          <span className={`font-medium ${cardTheme.accentTextClass}`}>
                             {cardTheme.label}
                           </span>
                           <span className="mx-1.5 text-zinc-300 dark:text-zinc-600" aria-hidden="true">·</span>
@@ -543,7 +636,42 @@ export function MainPage({
 
         <div className="lg:col-span-7">
           <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#1E1E1E] dark:shadow-none">
-            {activeEmbed === 'spotify' ? (
+            {!embedLoaded ? (
+              <div className="relative flex min-h-[320px] flex-col items-center justify-center gap-4 p-8 text-center">
+                <img
+                  src={heroPlaylist.coverUrl}
+                  alt=""
+                  aria-hidden="true"
+                  loading="lazy"
+                  decoding="async"
+                  className="absolute inset-0 h-full w-full object-cover opacity-20 blur-sm"
+                />
+                <div className="relative z-10 max-w-md space-y-3">
+                  <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                    {activeEmbed === 'spotify' ? 'Spotify' : 'YouTube'} 지연 로딩 플레이어
+                  </p>
+                  <h3 className="font-display text-xl font-bold text-zinc-900 dark:text-white">
+                    {heroPlaylist.title}
+                  </h3>
+                  <p className="text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+                    초기 페이지 속도를 높이기 위해 외부 플레이어를 필요할 때만 불러옵니다.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setEmbedLoaded(true)}
+                    className="inline-flex min-h-[44px] items-center gap-2 rounded-lg px-5 text-xs font-semibold text-black transition-transform duration-150 hover:scale-[1.02] cursor-pointer"
+                    style={{
+                      backgroundColor: activeEmbed === 'spotify' ? '#1DB954' : theme.accentHex,
+                    }}
+                  >
+                    <Play className="h-3.5 w-3.5 fill-current" />
+                    <span>
+                      {activeEmbed === 'spotify' ? 'Spotify 플레이어 불러오기' : 'YouTube 플레이어 불러오기'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            ) : activeEmbed === 'spotify' ? (
               <iframe
                 title={`${heroPlaylist.title} Spotify Embed`}
                 src={heroPlaylist.spotifyPlaylistEmbedUrl}

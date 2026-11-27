@@ -4,7 +4,9 @@ import { MiniPlayer } from './components/MiniPlayer';
 import { PlaylistModal } from './components/PlaylistModal';
 import { TopNav } from './components/TopNav';
 import { WeatherAtmosphereCanvas } from './components/WeatherAtmosphereCanvas';
+import { WeatherGlassOverlay } from './components/WeatherGlassOverlay';
 import { CITIES, INITIAL_SUBMISSIONS, PLAYLISTS } from './data/curationData';
+import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { AboutPage } from './pages/AboutPage';
 import { ExplorePage } from './pages/ExplorePage';
 import { MainPage } from './pages/MainPage';
@@ -26,6 +28,7 @@ const BUG_REPORTS_STORAGE_KEY = 'myvibe_bug_reports_v1';
 const THEME_STORAGE_KEY = 'myvibe_theme_v1';
 
 export default function App() {
+  const isOnline = useOnlineStatus();
   const [activePage, setActivePage] = useState<PageId>('main');
   const [exploreInitialWeather, setExploreInitialWeather] = useState<WeatherKey>('clear');
 
@@ -44,6 +47,13 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', themeMode === 'dark');
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.setAttribute('name', 'theme-color');
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute('content', themeMode === 'dark' ? '#121212' : '#F7F6F2');
     try {
       localStorage.setItem(THEME_STORAGE_KEY, themeMode);
     } catch {
@@ -279,8 +289,15 @@ export default function App() {
         themeMode={themeMode}
       />
 
+      <WeatherGlassOverlay weather={effectiveWeather} themeMode={themeMode} />
+
       <div className="relative z-10 flex min-h-screen flex-col">
-        <TopNav activePage={activePage} onNavigate={(page) => handleNavigate(page)} />
+        <TopNav
+          activePage={activePage}
+          themeMode={themeMode}
+          onNavigate={(page) => handleNavigate(page)}
+          onToggleTheme={toggleThemeMode}
+        />
 
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 sm:px-6 lg:px-8">
           <AnimatePresence mode="wait">
@@ -334,8 +351,8 @@ export default function App() {
           </AnimatePresence>
         </main>
 
-        {/* Quiet Editorial Footer above fixed mini player */}
-        <footer className="border-t border-zinc-200 bg-[#F7F6F2]/85 dark:border-white/[0.08] dark:bg-[#121212]/80 backdrop-blur-sm pb-24 pt-8 transition-colors">
+        {/* Quiet Editorial Footer above fixed mini player / mobile thumb dock */}
+        <footer className="border-t border-zinc-200 bg-[#F7F6F2]/85 dark:border-white/[0.08] dark:bg-[#121212]/80 backdrop-blur-sm pb-32 md:pb-24 pt-8 transition-colors">
           <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 text-xs text-zinc-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
             <div className="flex items-center gap-3">
               <span className="font-display text-sm font-semibold text-zinc-900 dark:text-zinc-200">
@@ -393,6 +410,8 @@ export default function App() {
         isMuted={isMuted}
         currentTime={currentTime}
         themeMode={themeMode}
+        activePage={activePage}
+        onNavigate={(page) => handleNavigate(page)}
         onToggleTheme={toggleThemeMode}
         onTogglePlay={handleTogglePlay}
         onPrev={handlePrevTrack}
@@ -401,6 +420,15 @@ export default function App() {
         onToggleMute={handleToggleMute}
         onOpenPlaylistDetail={() => setModalPlaylist(activePlaylist)}
       />
+
+      {!isOnline && (
+        <div
+          role="status"
+          className="fixed top-16 right-4 z-50 rounded-lg border border-amber-500/40 bg-amber-500/95 px-3.5 py-2 text-xs font-medium text-black shadow-lg"
+        >
+          오프라인 모드 · 저장된 캐시 데이터를 표시 중입니다
+        </div>
+      )}
 
       <PlaylistModal
         playlist={modalPlaylist}

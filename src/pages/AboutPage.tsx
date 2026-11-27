@@ -76,7 +76,7 @@ export function AboutPage({ onReportBug }: AboutPageProps) {
                 const item = WEATHER_THEMES[key];
                 return (
                   <tr key={key} className="hover:bg-zinc-50 dark:hover:bg-white/[0.02]">
-                    <td className="px-5 py-4 font-semibold whitespace-nowrap" style={{ color: item.accentHex }}>
+                    <td className={`px-5 py-4 font-semibold whitespace-nowrap ${item.accentTextClass}`}>
                       {item.label}
                     </td>
                     <td className="px-5 py-4 font-mono text-xs text-zinc-700 dark:text-zinc-300 tabular-nums whitespace-nowrap">

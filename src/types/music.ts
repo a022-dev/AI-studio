@@ -89,4 +89,5 @@ export interface WeatherThemeMeta {
   bpmTarget: string;
   instruments: string;
   listeningScene: string;
+  editorialQuotes: string[];
 }

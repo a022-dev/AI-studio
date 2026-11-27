@@ -28,6 +28,27 @@
   font-variant-numeric: tabular-nums;
 }
 
+@keyframes marquee-scroll {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-editorial-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 42s linear infinite;
+  will-change: transform;
+}
+
+.group:hover .animate-editorial-marquee,
+.group:focus-within .animate-editorial-marquee {
+  animation-play-state: paused;
+}
+
 /* Custom scrollbar synced with Light / Dark mode */
 ::-webkit-scrollbar {
   width: 8px;

@@ -269,7 +269,7 @@ export function RecommendPage({
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400">
                         <div className="flex items-center gap-2 font-medium">
-                          <span style={{ color: itemTheme.accentHex }}>{itemTheme.label}</span>
+                          <span className={itemTheme.accentTextClass}>{itemTheme.label}</span>
                           <span className="text-zinc-300 dark:text-zinc-600" aria-hidden="true">·</span>
                           <span className="text-zinc-700 dark:text-zinc-300">{item.nickname}</span>
                         </div>
